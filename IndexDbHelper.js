@@ -69,7 +69,7 @@ class IndexDbHelper {
 	}
 	
 	fetchData(index) {
-		return new Promise((resolve,reject) {
+		return new Promise((resolve,reject) => {
 			let transaction = db.transaction(["customers"]);
 			let objectStore = transaction.objectStore("customers");
 			let request = objectStore.get(index);
