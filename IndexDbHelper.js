@@ -1,6 +1,7 @@
 class IndexDbHelper {
 
-    constructor() {
+    constructor(window) {
+		this.refWindow = window;
         if (!this.readyDatabase()) {
             throw new Error("cant create a IndexedDB");
         }
@@ -12,11 +13,11 @@ class IndexDbHelper {
 
     readyDatabase() {
         // In the following line, you should include the prefixes of implementations you want to test.
-        this.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+        this.indexedDB = this.refWindow.indexedDB || this.refWindow.mozIndexedDB || this.refWindow.webkitIndexedDB || this.refWindow.msIndexedDB;
         // DON'T use "var indexedDB = ..." if you're not in a function.
         // Moreover, you may need references to some window.IDB* objects:
-        this.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction || { READ_WRITE: "readwrite" }; // This line should only be needed if it is needed to support the object's constants for older browsers
-        this.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+        this.IDBTransaction = this.refWindow.IDBTransaction || this.refWindow.webkitIDBTransaction || this.refWindow.msIDBTransaction || { READ_WRITE: "readwrite" }; // This line should only be needed if it is needed to support the object's constants for older browsers
+        this.IDBKeyRange = this.refWindow.IDBKeyRange || this.refWindow.webkitIDBKeyRange || this.refWindow.msIDBKeyRange;
         // (Mozilla has never prefixed these objects, so we don't need window.mozIDB*)
         if (!this.indexedDB) {
             return false;
