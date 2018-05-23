@@ -1,14 +1,14 @@
 class IndexDbHelper {
 
     constructor(window) {
-		this.refWindow = window;
-        if (!this.readyDatabase()) {
-            throw new Error("cant create a IndexedDB");
-        }
-		this.shelfName = "shelf"
-		this.dbOpen = false;
-		this.readyDatabase();
-		this.callbacks = [];
+      this.refWindow = window;
+          if (!this.readyDatabase()) {
+              throw new Error("cant create a IndexedDB");
+          }
+      this.shelfName = "shelf"
+      this.dbOpen = false;
+      this.readyDatabase();
+      this.callbacks = [];
     }
 
     readyDatabase() {
@@ -37,7 +37,7 @@ class IndexDbHelper {
         idboOpenDBRequest.onsuccess = (event) => {
 			console.log('created database');
         };
-		idboOpenDBRequest.onupgradeneeded = (event) => {
+  		idboOpenDBRequest.onupgradeneeded = (event) => {
 				let db = event.target.result;
 				console.log('creating structure');
                 this.objStore = db.createObjectStore(this.shelfName, { keyPath: "name" });
