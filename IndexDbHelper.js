@@ -32,19 +32,19 @@ class IndexDbHelper {
     createNew(databaseName) {
         let idboOpenDBRequest = this.indexedDB.open(databaseName,1);
         idboOpenDBRequest.onerror = (event) => {
-			console.log('couldnt create the structure');
+			    console.log('couldnt create the structure');
         };
         idboOpenDBRequest.onsuccess = (event) => {
-			console.log('created database');
+			    console.log('created database');
         };
-  		idboOpenDBRequest.onupgradeneeded = (event) => {
-				let db = event.target.result;
-				console.log('creating structure');
-                this.objStore = db.createObjectStore(this.shelfName, { keyPath: "name" });
-				this.objStore.transaction.oncomplete = (event) => {
-					this.dbOpen = true;
-					this.onDbOpenReady(db);
-				}
+        idboOpenDBRequest.onupgradeneeded = (event) => {
+          let db = event.target.result;
+          console.log('creating structure');
+                  this.objStore = db.createObjectStore(this.shelfName, { keyPath: "name" });
+          this.objStore.transaction.oncomplete = (event) => {
+            this.dbOpen = true;
+            this.onDbOpenReady(db);
+          }
         };
     }
 	/*
