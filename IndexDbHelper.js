@@ -46,7 +46,10 @@ class IndexDbHelper {
 				}
         };
     }
-	//callback(db) format
+	/*
+        Function that recives the actions to be done into the Db after its ready. 
+        It has the format callback(db),  where the db is the indexedDBs
+    */
     addAction(callback) {
 		this.callbacks.push(callback);
 	}
