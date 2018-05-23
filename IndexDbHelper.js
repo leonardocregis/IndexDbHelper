@@ -67,6 +67,20 @@ class IndexDbHelper {
 			this.addAction(action);
 		}
 	}
+	
+	fetchData(index) {
+		return new Promise((resolve,reject) {
+			let transaction = db.transaction(["customers"]);
+			let objectStore = transaction.objectStore("customers");
+			let request = objectStore.get(index);
+			request.onerror = function(event) {
+			  reject(event);
+			};
+			request.onsuccess = function(event) {
+			  resolve(request.result);
+			};			
+		});
+	}
 }
 let obj = new IndexDbHelper(window);
 obj.createNew('sample');
