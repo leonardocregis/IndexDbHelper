@@ -29,20 +29,39 @@ class IndexDbHelper {
         this.callbacks.forEach(fn => fn(db));
     }
 
+    open(databaseName) {
+      const openDBRequest = this.indexedDB.open(databaseName,1);
+      
+      openDBRequest.onerror = (event) => {
+        console.log('couldnt open the database');
+        throw new Error('couldnt open the database');
+      };
+      openDBRequest.onsuccess = (event) => {
+        console.log('opened database');
+        this.db = openDBRequest.result;
+        this.onDbOpenReady(db);
+      };
+      openDBRequest.onupgradeneeded = (event) => {
+        throw new Error("Database structure dont exists, use createNew");
+      };
+
+    
+    }
     createNew(databaseName) {
-        let idboOpenDBRequest = this.indexedDB.open(databaseName,1);
-        idboOpenDBRequest.onerror = (event) => {
+        const openDBRequest = this.indexedDB.open(databaseName,1);
+        openDBRequest.onerror = (event) => {
 			    console.log('couldnt create the structure');
         };
-        idboOpenDBRequest.onsuccess = (event) => {
-			    console.log('created database');
+        openDBRequest.onsuccess = (event) => {
+          console.log('created database');
+          this.db = event.target.result;
+          this.dbOpen = true;
+          this.onDbOpenReady(this.db);//last run in case the database already exists;
         };
-        idboOpenDBRequest.onupgradeneeded = (event) => {
-          let db = event.target.result;
+        openDBRequest.onupgradeneeded = (event) => {
           console.log('creating structure');
-                  this.objStore = db.createObjectStore(this.shelfName, { keyPath: "name" });
+                  this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
           this.objStore.transaction.oncomplete = (event) => {
-            this.dbOpen = true;
             this.onDbOpenReady(db);
           }
         };
@@ -51,7 +70,7 @@ class IndexDbHelper {
           Function that recives the actions to be done into the Db after its ready.
           It has the format callback(db),  where the db is the indexedDBs
       */
-      addAction(callback) {
+    addAction(callback) {
       this.callbacks.push(callback);
     }
 
@@ -62,30 +81,49 @@ class IndexDbHelper {
         customerObjectStore.add(data);
       }
       if(this.dbOpen){
-        action(this.indexedDB);
+        action(this.db);
       } else {
         this.addAction(action);
       }
     }
 
     fetchData(index) {
-      return new Promise((resolve,reject) => {
-        let transaction = db.transaction(["customers"]);
-        let objectStore = transaction.objectStore("customers");
-        let request = objectStore.get(index);
-        request.onerror = function(event) {
-          reject(event);
-        };
-        request.onsuccess = function(event) {
-          resolve(request.result);
-        };
-      });
+      if(this.dbOpen) {
+        return new Promise((resolve,reject) => {
+          let transaction = this.db.transaction(["shelf"]);
+          let objectStore = transaction.objectStore("shelf");
+          let request = objectStore.get(index);
+          request.onerror = function(event) {
+            reject(event);
+          };
+          request.onsuccess = function(event) {
+            resolve(request.result);
+          };
+        });
+      } else {
+        return new Promise((resolve, reject) => {
+          console.log('building fetch promise');
+          let actionFetch = (db) => {
+            console.log('running fetch');
+            let transaction = db.transaction(["shelf"]);
+            let objectStore = transaction.objectStore("shelf");
+            let request = objectStore.get(index);
+            request.onerror = function(event) {
+              reject(event);
+            };
+            request.onsuccess = function(event) {
+              resolve(request.result);
+            };
+          }
+          this.addAction(actionFetch);
+        });
+      }
     }
 }
 let obj = new IndexDbHelper(window);
 obj.createNew('sample');
 obj.update({"name":"reading","values":[{"title":"name of the rose"},{"title":"in the name of God"}]});
-
+obj.fetchData("reading").then(result => console.log(result));
 
 
 
