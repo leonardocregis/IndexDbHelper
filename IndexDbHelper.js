@@ -27,6 +27,7 @@ class IndexDbHelper {
 
     onDbOpenReady(db) {
         this.callbacks.forEach(fn => fn(db));
+        this.cleanActions();
     }
 
     open(databaseName) {
@@ -118,6 +119,10 @@ class IndexDbHelper {
           this.addAction(actionFetch);
         });
       }
+    }
+
+    cleanActions() {
+      this.callbacks = [];
     }
 }
 let obj = new IndexDbHelper(window);
