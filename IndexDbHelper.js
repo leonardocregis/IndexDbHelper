@@ -25,54 +25,59 @@ class IndexDbHelper {
         return true;
     }
 
-    onDbOpenReady(db) {
-        this.callbacks.forEach(fn => fn(db));
-        this.cleanActions();
-    }
-
     open(databaseName) {
       const openDBRequest = this.indexedDB.open(databaseName,1);
-      
-      openDBRequest.onerror = (event) => {
-        console.log('couldnt open the database');
-        throw new Error('couldnt open the database');
-      };
-      openDBRequest.onsuccess = (event) => {
-        console.log('opened database');
-        this.db = openDBRequest.result;
-        this.onDbOpenReady(db);
-      };
-      openDBRequest.onupgradeneeded = (event) => {
-        throw new Error("Database structure dont exists, use createNew");
-      };
-
-    
-    }
-    createNew(databaseName) {
-        const openDBRequest = this.indexedDB.open(databaseName,1);
+      return new Promise((resolve, reject) => {
         openDBRequest.onerror = (event) => {
-			    console.log('couldnt create the structure');
+          console.log('couldnt open the database');
+          reject(['couldnt open the database', event]);
         };
         openDBRequest.onsuccess = (event) => {
-          console.log('created database');
-          this.db = event.target.result;
-          this.dbOpen = true;
-          this.onDbOpenReady(this.db);//last run in case the database already exists;
+          console.log('opened database');
+          this.db = openDBRequest.result;
+          resolve(this.db);
         };
         openDBRequest.onupgradeneeded = (event) => {
-          console.log('creating structure');
-                  this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
-          this.objStore.transaction.oncomplete = (event) => {
-            this.onDbOpenReady(db);
-          }
+          reject(["Database structure dont exists, use createNew", event]);
         };
+      });
     }
-    /*
-          Function that recives the actions to be done into the Db after its ready.
-          It has the format callback(db),  where the db is the indexedDBs
-      */
-    addAction(callback) {
-      this.callbacks.push(callback);
+
+    createNew(databaseName) {
+        this.dbOpen = false;
+        const openDBRequest = this.indexedDB.open(databaseName,1);
+        let isNewDb = false;
+        let upgradedPromise = new Promise((resolve, reject) => {
+            openDBRequest.onupgradeneeded = (event) => {
+              console.log('creating structure');
+              isNewDb = true;
+              this.db = event.target.result;
+              this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
+              this.objStore.transaction.oncomplete = (event) => {
+                resolve(this.db);
+              }
+              this.objStore.transaction.onerror = (event) => {
+                reject(new Error(event));
+              }
+            }
+        });
+        return new Promise( (resolve, reject) => {
+          openDBRequest.onerror = (event) => {
+            reject(new Error('couldnt create the structure', event));
+          };
+          openDBRequest.onsuccess = (event) => {
+            console.log('created database');
+            this.dbOpen = true;
+            if (isNewDb) {
+              upgradedPromise
+                .then(db => resolve(db))
+                .catch(err => reject(err));
+            } else {
+              reject(new Error('Database already exists'));
+            }
+          };
+
+        });
     }
 
     update(data){
@@ -125,11 +130,48 @@ class IndexDbHelper {
       this.callbacks = [];
     }
 }
+
 let obj = new IndexDbHelper(window);
-obj.createNew('sample');
-obj.update({"name":"reading","values":[{"title":"name of the rose"},{"title":"in the name of God"}]});
-obj.fetchData("reading").then(result => console.log(result));
+obj.createNew('sample').then(result => console.log('Structure created')).catch(err => console.log('Error shouldnt happen', err));
+obj.createNew('sample').then(result => console.log('Error Should happen')).catch(err => console.log('Expected Error Happend'));
+obj.open('sample').then(result => console.log('Opened the connection')).catch(err => console.log('Unexpected Error Happend'));
 
+// obj.createNew('sample').then( result => {
+//   console.log('sample values');
+//   console.log('======================================================================================');
+//   obj.update({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]});
+//   obj.fetchData("reading").then(result => result.values.forEach(book => console.log(book.title)));
+//   obj.fetchData("wantToRead").then(result => result.values.forEach(book => console.log(book.title)));
+// });
 
+// obj.createNew('myShelf').then(result => {
+//   console.log('myShelf values');
+//   console.log('======================================================================================');
+//   obj.update({"name":"reading","values":[{"title":"Path to happiness 2"},{"title":"in the name of God"}]});
+//   obj.update({"name":"wantToRead","values":[{"title":"Life is easy 3"},{"title":"Shots of carol"}]});
+//   obj.fetchData("reading").then(result => result.values.forEach(book => console.log(book.title)));
+//   obj.fetchData("wantToRead").then(result => result.values.forEach(book => console.log(book.title)));
+// });
+// let all = new Promise((resolve, reject)=> {
+//   let readingShelf;
+//   let wantToReadShelf;
+//   let readShelf;
+//   let readingPromise = obj.fetchData('reading').then(result => console.log(result));
+//   let wantToReadPromise = obj.fetchData('wantToRead').then(result => console.log(result));
+//   let readPromise = obj.fetchData('read').then(result => console.log(result));
 
+//   Promise.all(readingPromise, wantToReadPromise, readPromise)
+//     .then(result => 
+//       {
+//         readingShelf = result[0];
+//         wantToReadShelf = result[1];
+//         readShelf = result[2];
+//         resolve([readingShelf, wantToReadShelf, readShelf]);
+//       })
+//     .catch(err => resolve(err));
 
+// });
+// all.then(results => {
+//       results.forEach( result => console.log(result));
+//  })
+//  .catch(err => console.log(err));
