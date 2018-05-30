@@ -8,7 +8,8 @@ class IndexDbHelper {
       this.shelfName = "shelf"
       this.dbOpen = false;
       this.readyDatabase();
-      this.callbacks = [];
+      this.promises = [];
+      this.databaseName = undefined;
     }
 
     readyDatabase() {
@@ -26,6 +27,9 @@ class IndexDbHelper {
     }
 
     open(databaseName) {
+      if (this.db && this.databaseName == databaseName) {
+        throw new Error("database already open");
+      }
       const openDBRequest = this.indexedDB.open(databaseName,1);
       return new Promise((resolve, reject) => {
         openDBRequest.onerror = (event) => {
@@ -34,6 +38,7 @@ class IndexDbHelper {
         };
         openDBRequest.onsuccess = (event) => {
           console.log('opened database');
+          this.dbOpen = true;
           this.db = openDBRequest.result;
           resolve(this.db);
         };
@@ -81,53 +86,64 @@ class IndexDbHelper {
     }
 
     update(data){
-      console.log('inserting values');
-      let action = (db) => {
-        let customerObjectStore = db.transaction('shelf', 'readwrite').objectStore('shelf');
-        customerObjectStore.add(data);
-      }
-      if(this.dbOpen){
-        action(this.db);
-      } else {
-        this.addAction(action);
-      }
+      return new Promise((resolve, reject) => {
+        console.log('inserting values');
+        const transaction = this.db.transaction('shelf', 'readwrite');
+        const customerObjectStore = transaction.objectStore('shelf');
+        customerObjectStore.put(data);
+
+        transaction.oncomplete = function(event) {
+          resolve(data);
+        };
+        
+        transaction.onerror = function(event) {
+          resolve(new Error(event));
+        };
+      });
     }
+
+    insert(data){
+      return new Promise((resolve, reject) => {
+        console.log('inserting values');
+        const transaction = this.db.transaction('shelf', 'readwrite');
+        const customerObjectStore = transaction.objectStore('shelf');
+        customerObjectStore.add(data);
+
+        transaction.oncomplete = function(event) {
+          resolve(data);
+        };
+        
+        transaction.onerror = function(event) {
+          resolve(new Error(event));
+        };
+      });
+    }
+
 
     fetchData(index) {
       if(this.dbOpen) {
+        console.log('dbOpen');
         return new Promise((resolve,reject) => {
-          let transaction = this.db.transaction(["shelf"]);
-          let objectStore = transaction.objectStore("shelf");
-          let request = objectStore.get(index);
+          const transaction = this.db.transaction(["shelf"]);
+          const objectStore = transaction.objectStore("shelf");
+          const request = objectStore.get(index);
+          transaction.onerror = function(event) {
+            reject(event);
+          };
           request.onerror = function(event) {
             reject(event);
           };
           request.onsuccess = function(event) {
-            resolve(request.result);
-          };
+           resolve(request.result);
+          }
         });
       } else {
-        return new Promise((resolve, reject) => {
-          console.log('building fetch promise');
-          let actionFetch = (db) => {
-            console.log('running fetch');
-            let transaction = db.transaction(["shelf"]);
-            let objectStore = transaction.objectStore("shelf");
-            let request = objectStore.get(index);
-            request.onerror = function(event) {
-              reject(event);
-            };
-            request.onsuccess = function(event) {
-              resolve(request.result);
-            };
-          }
-          this.addAction(actionFetch);
-        });
+        return Promise.reject("Database not open");
       }
     }
 
     cleanActions() {
-      this.callbacks = [];
+      this.promises = [];
     }
 }
 
@@ -136,13 +152,29 @@ obj.createNew('sample').then(result => console.log('Structure created')).catch(e
 obj.createNew('sample').then(result => console.log('Error Should happen')).catch(err => console.log('Expected Error Happend'));
 obj.open('sample').then(result => console.log('Opened the connection')).catch(err => console.log('Unexpected Error Happend'));
 
-// obj.createNew('sample').then( result => {
-//   console.log('sample values');
-//   console.log('======================================================================================');
-//   obj.update({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]});
-//   obj.fetchData("reading").then(result => result.values.forEach(book => console.log(book.title)));
-//   obj.fetchData("wantToRead").then(result => result.values.forEach(book => console.log(book.title)));
-// });
+obj.open('sample').then( result => {
+  console.log('sample values');
+  console.log('======================================================================================');
+  obj.insert({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
+    .then(data => {
+       let promise1 = obj.fetchData("wantToRead");
+       let promise2 = obj.fetchData("something"); 
+       Promise.all([promise1, promise2])
+        .then(results => {
+          console.log(results);
+          if (result && result.values) {
+            result.values.forEach(book => console.log(book.title));
+          }
+        });
+        obj.update({"name":"wantToRead","values":[{"title":"Life is easy2"},{"title":"Fucking carol"}]})
+          .then(data => {
+            obj.fetchData("wantToRead").then(result => console.log(result));
+          }
+        );
+    
+    }).catch( err => console.log('something bad happend', err));
+
+});
 
 // obj.createNew('myShelf').then(result => {
 //   console.log('myShelf values');
