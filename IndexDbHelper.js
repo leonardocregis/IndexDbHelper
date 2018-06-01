@@ -8,7 +8,6 @@ class IndexDbHelper {
       this.shelfName = "shelf"
       this.dbOpen = false;
       this.readyDatabase();
-      this.promises = [];
       this.databaseName = undefined;
     }
 
@@ -34,7 +33,7 @@ class IndexDbHelper {
       return new Promise((resolve, reject) => {
         openDBRequest.onerror = (event) => {
           console.log('couldnt open the database');
-          reject(['couldnt open the database', event]);
+          reject(['couldnt open the database', event.target.error]);
         };
         openDBRequest.onsuccess = (event) => {
           console.log('opened database');
@@ -62,13 +61,13 @@ class IndexDbHelper {
                 resolve(this.db);
               }
               this.objStore.transaction.onerror = (event) => {
-                reject(new Error(event));
+                reject(new Error(event.target.error));
               }
             }
         });
         return new Promise( (resolve, reject) => {
           openDBRequest.onerror = (event) => {
-            reject(new Error('couldnt create the structure', event));
+            reject(['couldnt create the structure', event.target.error]);
           };
           openDBRequest.onsuccess = (event) => {
             console.log('created database');
@@ -97,7 +96,7 @@ class IndexDbHelper {
         };
         
         transaction.onerror = function(event) {
-          resolve(new Error(event));
+          resolve(new Error(event.target.error));
         };
       });
     }
@@ -109,16 +108,29 @@ class IndexDbHelper {
         const customerObjectStore = transaction.objectStore('shelf');
         customerObjectStore.add(data);
 
+        transaction.oncomplete = event =>  resolve(data);
+        
+        transaction.onerror = event => reject(event.target.error);
+      });
+    }
+
+    delete(index) {
+      return new Promise((resolve, reject) => {
+        console.log('deleting index', index);
+        const transaction = this.db.transaction('shelf', 'readwrite');
+        const customerObjectStore = transaction.objectStore('shelf');
+        customerObjectStore.del(index);
+
         transaction.oncomplete = function(event) {
           resolve(data);
         };
         
         transaction.onerror = function(event) {
-          resolve(new Error(event));
+          reject(event.target.error);
         };
       });
+      
     }
-
 
     fetchData(index) {
       if(this.dbOpen) {
@@ -128,10 +140,10 @@ class IndexDbHelper {
           const objectStore = transaction.objectStore("shelf");
           const request = objectStore.get(index);
           transaction.onerror = function(event) {
-            reject(event);
+            reject(event.target.errror);
           };
           request.onerror = function(event) {
-            reject(event);
+            reject(event.target.error);
           };
           request.onsuccess = function(event) {
            resolve(request.result);
@@ -148,31 +160,35 @@ class IndexDbHelper {
 }
 
 let obj = new IndexDbHelper(window);
-obj.createNew('sample').then(result => console.log('Structure created')).catch(err => console.log('Error shouldnt happen', err));
-obj.createNew('sample').then(result => console.log('Error Should happen')).catch(err => console.log('Expected Error Happend'));
-obj.open('sample').then(result => console.log('Opened the connection')).catch(err => console.log('Unexpected Error Happend'));
+// obj.createNew('sample').then(result => console.log('Structure created')).catch(err => console.log('Error shouldnt happen', err));
+// obj.createNew('sample').then(result => console.log('Error Should happen')).catch(err => console.log('Expected Error Happend'));
+// obj.open('sample').then(result => console.log('Opened the connection')).catch(err => console.log('Unexpected Error Happend'));
 
 obj.open('sample').then( result => {
   console.log('sample values');
   console.log('======================================================================================');
-  obj.insert({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
+  obj.insert({"name":"readed","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
     .then(data => {
-       let promise1 = obj.fetchData("wantToRead");
-       let promise2 = obj.fetchData("something"); 
-       Promise.all([promise1, promise2])
-        .then(results => {
-          console.log(results);
-          if (result && result.values) {
-            result.values.forEach(book => console.log(book.title));
-          }
-        });
-        obj.update({"name":"wantToRead","values":[{"title":"Life is easy2"},{"title":"Fucking carol"}]})
-          .then(data => {
-            obj.fetchData("wantToRead").then(result => console.log(result));
-          }
-        );
+      obj.insert({"name":"readed","values":[{"title":"Life is easy2"},{"title":"Fucking carol2"}]});
+    }).catch(err => console.log('expected error: object already exists', err));
+  // obj.insert({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
+  //   .then(data => {
+  //      let promise1 = obj.fetchData("wantToRead");
+  //      let promise2 = obj.fetchData("something"); 
+  //      Promise.all([promise1, promise2])
+  //       .then(results => {
+  //         console.log(results);
+  //         if (result && result.values) {
+  //           result.values.forEach(book => console.log(book.title));
+  //         }
+  //       });
+  //       obj.update({"name":"wantToRead","values":[{"title":"Life is easy2"},{"title":"Fucking carol"}]})
+  //         .then(data => {
+  //           obj.fetchData("wantToRead").then(result => console.log(result));
+  //         }
+  //       );
     
-    }).catch( err => console.log('something bad happend', err));
+  //   }).catch( err => console.log('something bad happend', err));
 
 });
 
