@@ -42,7 +42,7 @@ class IndexDbHelper {
           resolve(this.db);
         };
         openDBRequest.onupgradeneeded = (event) => {
-          reject(["Database structure dont exists, use createNew", event]);
+          reject(["Database structure dont exists, use createNew", event.target.error]);
         };
       });
     }
