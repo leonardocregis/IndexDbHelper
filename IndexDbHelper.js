@@ -1,11 +1,11 @@
 class IndexDbHelper {
 
-    constructor(window) {
+    constructor(window, shelfName) {
       this.refWindow = window;
           if (!this.readyDatabase()) {
               throw new Error("cant create a IndexedDB");
           }
-      this.shelfName = "shelf"
+      this.shelfName = shelfName
       this.dbOpen = false;
       this.readyDatabase();
       this.databaseName = undefined;
