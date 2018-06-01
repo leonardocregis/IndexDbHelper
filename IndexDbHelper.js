@@ -140,7 +140,7 @@ class IndexDbHelper {
           const objectStore = transaction.objectStore("shelf");
           const request = objectStore.get(index);
           transaction.onerror = function(event) {
-            reject(event.target.errror);
+            reject(event.target.error);
           };
           request.onerror = function(event) {
             reject(event.target.error);
