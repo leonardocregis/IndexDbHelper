@@ -30,58 +30,32 @@ class IndexDbHelper {
         throw new Error("database already open");
       }
       const openDBRequest = this.indexedDB.open(databaseName,1);
-      return new Promise((resolve, reject) => {
+      let upgradedPromise = new Promise((resolve, reject) => {
+        openDBRequest.onupgradeneeded = (event) => {
+          console.log('creating structure');
+          this.db = event.target.result;
+          this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
+          this.objStore.transaction.oncomplete = (event) => {
+            resolve(this.db);
+          }
+          this.objStore.transaction.onerror = (event) => {
+            reject(new Error(event.target.error));
+          }
+        }
+      });
+      return new Promise( (resolve, reject) => {
         openDBRequest.onerror = (event) => {
-          console.log('couldnt open the database');
-          reject(['couldnt open the database', event.target.error]);
+          reject(new Error(event.target.error));
         };
         openDBRequest.onsuccess = (event) => {
-          console.log('opened database');
+          console.log('connection created');
           this.dbOpen = true;
-          this.db = openDBRequest.result;
-          resolve(this.db);
-        };
-        openDBRequest.onupgradeneeded = (event) => {
-          reject(["Database structure dont exists, use createNew", event.target.error]);
+          upgradedPromise
+           .then(db => resolve(db))
+           .catch(err => reject(err));
         };
       });
-    }
 
-    createNew(databaseName) {
-        this.dbOpen = false;
-        const openDBRequest = this.indexedDB.open(databaseName,1);
-        let isNewDb = false;
-        let upgradedPromise = new Promise((resolve, reject) => {
-            openDBRequest.onupgradeneeded = (event) => {
-              console.log('creating structure');
-              isNewDb = true;
-              this.db = event.target.result;
-              this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
-              this.objStore.transaction.oncomplete = (event) => {
-                resolve(this.db);
-              }
-              this.objStore.transaction.onerror = (event) => {
-                reject(new Error(event.target.error));
-              }
-            }
-        });
-        return new Promise( (resolve, reject) => {
-          openDBRequest.onerror = (event) => {
-            reject(['couldnt create the structure', event.target.error]);
-          };
-          openDBRequest.onsuccess = (event) => {
-            console.log('created database');
-            this.dbOpen = true;
-            if (isNewDb) {
-              upgradedPromise
-                .then(db => resolve(db))
-                .catch(err => reject(err));
-            } else {
-              reject(new Error('Database already exists'));
-            }
-          };
-
-        });
     }
 
     update(data){
@@ -158,19 +132,41 @@ class IndexDbHelper {
       this.promises = [];
     }
 }
-
-let obj = new IndexDbHelper(window);
-// obj.createNew('sample').then(result => console.log('Structure created')).catch(err => console.log('Error shouldnt happen', err));
-// obj.createNew('sample').then(result => console.log('Error Should happen')).catch(err => console.log('Expected Error Happend'));
+// Some scenarios just for testing
+// TODO create Unit tests
+// let obj = new IndexDbHelper(window);
 // obj.open('sample').then(result => console.log('Opened the connection')).catch(err => console.log('Unexpected Error Happend'));
 
-obj.open('sample').then( result => {
-  console.log('sample values');
-  console.log('======================================================================================');
-  obj.insert({"name":"readed","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
-    .then(data => {
-      obj.insert({"name":"readed","values":[{"title":"Life is easy2"},{"title":"Fucking carol2"}]});
-    }).catch(err => console.log('expected error: object already exists', err));
+//scenario - open and create
+// let obj = new IndexDbHelper(window);
+// obj.open('sample')
+//    .then(result => console.log('Should have a error, since its opening something not supposed to open'))
+//    .catch(err => {
+//     console.log('expected error [' + err + ']');
+//     // obj.createNew('sample').then(result => console.log('should be fine')).catch(err => console.log('Undexpected error happend', err));
+//    });
+
+// let creatingReq = obj.indexedDB.open('sample2');
+
+// creatingReq.onsuccess = () => {
+//   let request = obj.indexedDB.deleteDatabase('sample2')
+//   request.onsuccess =  data =>  console.log('erased ?', data);
+//   request.onerror = err => console.log('bad thing',err); 
+// };
+// creatingReq.onerror = () => {console.log('bad thing happend')};
+// console.log('testings');
+// let request = obj.indexedDB.deleteDatabase('sample2');
+// request.onsuccess =  data =>  console.log('erased ?', data);
+// request.onerror = err => console.log('bad thing',err); 
+
+
+// obj.open('sample').then( result => {
+//   console.log('sample values');
+//   console.log('======================================================================================');
+//   obj.insert({"name":"readed","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
+//     .then(data => {
+//       obj.insert({"name":"readed","values":[{"title":"Life is easy2"},{"title":"Fucking carol2"}]});
+//     }).catch(err => console.log('expected error: object already exists', err));
   // obj.insert({"name":"wantToRead","values":[{"title":"Life is easy"},{"title":"Fucking carol"}]})
   //   .then(data => {
   //      let promise1 = obj.fetchData("wantToRead");
@@ -190,7 +186,7 @@ obj.open('sample').then( result => {
     
   //   }).catch( err => console.log('something bad happend', err));
 
-});
+// });
 
 // obj.createNew('myShelf').then(result => {
 //   console.log('myShelf values');
