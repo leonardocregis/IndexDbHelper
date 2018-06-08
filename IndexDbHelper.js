@@ -38,6 +38,7 @@ class IndexDbHelper {
       let upgradedPromise = new Promise((resolve, reject) => {
         openDBRequest.onupgradeneeded = (event) => {
           console.log('creating structure');
+          hasUpgrade = true;
           this.db = event.target.result;
           this.objStore = this.db.createObjectStore(this.shelfName, { keyPath: "name" });
           this.objStore.transaction.oncomplete = (event) => {
@@ -55,9 +56,14 @@ class IndexDbHelper {
         openDBRequest.onsuccess = (event) => {
           console.log('connection created');
           this.dbOpen = true;
-          upgradedPromise
-           .then(db => resolve(db))
-           .catch(err => reject(err));
+          this.db = event.target.result;
+          if (hasUpgrade) {
+            upgradedPromise
+            .then(db => resolve(db))
+            .catch(err => reject(err));
+          } else {
+            resolve(this.db);
+          }
         };
       });
 
