@@ -5,7 +5,11 @@ class IndexDbHelper {
           if (!this.readyDatabase()) {
               throw new Error("cant create a IndexedDB");
           }
-      this.shelfName = shelfName
+      if (shelfName) {
+        this.shelfName = shelfName
+      } else {
+        this.shelfName = 'shelf';
+      }
       this.dbOpen = false;
       this.readyDatabase();
       this.databaseName = undefined;
@@ -30,6 +34,7 @@ class IndexDbHelper {
         throw new Error("database already open");
       }
       const openDBRequest = this.indexedDB.open(databaseName,1);
+      let hasUpgrade = false;//suposed that the event onUpgradeneeded always happens before onsucess
       let upgradedPromise = new Promise((resolve, reject) => {
         openDBRequest.onupgradeneeded = (event) => {
           console.log('creating structure');
@@ -61,8 +66,8 @@ class IndexDbHelper {
     update(data){
       return new Promise((resolve, reject) => {
         console.log('inserting values');
-        const transaction = this.db.transaction('shelf', 'readwrite');
-        const customerObjectStore = transaction.objectStore('shelf');
+        const transaction = this.db.transaction(this.shelfName, 'readwrite');
+        const customerObjectStore = transaction.objectStore(this.shelfName);
         customerObjectStore.put(data);
 
         transaction.oncomplete = function(event) {
@@ -78,8 +83,8 @@ class IndexDbHelper {
     insert(data){
       return new Promise((resolve, reject) => {
         console.log('inserting values');
-        const transaction = this.db.transaction('shelf', 'readwrite');
-        const customerObjectStore = transaction.objectStore('shelf');
+        const transaction = this.db.transaction(this.shelfName, 'readwrite');
+        const customerObjectStore = transaction.objectStore(this.shelfName);
         customerObjectStore.add(data);
 
         transaction.oncomplete = event =>  resolve(data);
@@ -91,8 +96,8 @@ class IndexDbHelper {
     delete(index) {
       return new Promise((resolve, reject) => {
         console.log('deleting index', index);
-        const transaction = this.db.transaction('shelf', 'readwrite');
-        const customerObjectStore = transaction.objectStore('shelf');
+        const transaction = this.db.transaction(this.shelfName, 'readwrite');
+        const customerObjectStore = transaction.objectStore(this.shelfName);
         customerObjectStore.del(index);
 
         transaction.oncomplete = function(event) {
@@ -108,10 +113,10 @@ class IndexDbHelper {
 
     fetchData(index) {
       if(this.dbOpen) {
-        console.log('dbOpen');
+        console.log('fetching index', index);
         return new Promise((resolve,reject) => {
-          const transaction = this.db.transaction(["shelf"]);
-          const objectStore = transaction.objectStore("shelf");
+          const transaction = this.db.transaction([this.shelfName]);
+          const objectStore = transaction.objectStore(this.shelfName);
           const request = objectStore.get(index);
           transaction.onerror = function(event) {
             reject(event.target.error);
